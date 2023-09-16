@@ -1,13 +1,23 @@
+# Use the official OpenJDK 11 image as the build image
 FROM openjdk:11 AS BUILD_IMAGE
-RUN apt update && apt install maven -y 
+
+# Install Maven and Git
+RUN apt-get update && apt-get install -y maven git
+
+# Clone the Git repository and build the project
 RUN git clone https://github.com/devopshydclub/vprofile-project.git
-RUN cd vprofile-project && git checkout docker && mvn install 
+WORKDIR /vprofile-project
+RUN git checkout docker
+RUN mvn clean install
 
-FROM eclipse-temurin:11-jdk-jammy
-LABEL "Project"="Vprofile"
-LABEL "Author"="Tarawut"
-RUN rm -rf /usr/local/tom/webapps/*
-COPY --from=BUILD_IMAGE vprofile-project/target/vprofile-v2.war /usr/local/tomcat/webapps/ROOT.war
+# Create a dedicated stage for the final image
+FROM tomcat:9-jdk11-openjdk-slim
 
+# Copy the WAR file from the build stage to Tomcat's webapps directory
+COPY --from=BUILD_IMAGE /vprofile-project/target/vprofile-v2.war /usr/local/tomcat/webapps/ROOT.war
+
+# Expose the default Tomcat port
 EXPOSE 8080
+
+# Start Tomcat
 CMD ["catalina.sh", "run"]
